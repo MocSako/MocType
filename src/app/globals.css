@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+[data-theme="light"] {
+  --bg: #f5f5f5;
+  --bg-alt: #e8e8e8;
+  --text: #1a1a1a;
+  --sub: #999999;
+  --sub-alt: #c8c8c8;
+  --main: #0a0a0a;
+  --success: #2f8f4e;
+  --error: #ca4754;
+  --error-extra: #7e2a33;
+}
+
+[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --bg-alt: #141414;
+  --text: #d1d0c5;
+  --sub: #646669;
+  --sub-alt: #2c2c2e;
+  --main: #ffffff;
+  --success: #4caf50;
+  --error: #ca4754;
+  --error-extra: #7e2a33;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+::selection {
+  background-color: var(--main);
+  color: var(--bg);
+}
+
+@keyframes caretPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.word {
+  display: inline-flex;
+}
+
+.word .letter {
+  color: var(--sub);
+  transition: color 0.05s;
+}
+
+.word .letter.correct {
+  color: var(--text);
+}
+
+.word .letter.incorrect {
+  color: var(--error);
+}
+
+.word .letter.extra {
+  color: var(--error-extra);
+}
+
+.caret {
+  position: absolute;
+  width: 2.5px;
+  height: 1.3em;
+  background-color: var(--main);
+  border-radius: 1px;
+  animation: caretPulse 1s ease infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.caret.typing {
+  animation: none;
+  opacity: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
