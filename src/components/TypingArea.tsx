@@ -1,10 +1,77 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, memo } from "react";
 import { useTestStore } from "@/store/useTestStore";
 import { useConfigStore } from "@/store/useConfigStore";
 import { getSegmentColor } from "@/lib/segmentClassifier";
 import RestartButton from "./RestartButton";
+import type { Word } from "@/store/useTestStore";
+
+function TimerDisplay() {
+  const timerSeconds = useTestStore((s) => s.timerSeconds);
+  return (
+    <span
+      className="text-2xl font-bold tabular-nums tracking-wider inline-block min-w-[1.5ch]"
+      style={{ color: "var(--main)" }}
+    >
+      {timerSeconds}
+    </span>
+  );
+}
+
+function WordCounter() {
+  const currentWordIndex = useTestStore((s) => s.currentWordIndex);
+  const wordCount = useTestStore((s) => s.words.length);
+  return (
+    <span
+      className="text-2xl font-bold tabular-nums tracking-wider"
+      style={{ color: "var(--main)" }}
+    >
+      {currentWordIndex}/{wordCount}
+    </span>
+  );
+}
+
+const WordRow = memo(function WordRow({
+  word,
+  isActive,
+  isSourceRun,
+  wordIndex,
+}: {
+  word: Word;
+  isActive: boolean;
+  isSourceRun: boolean;
+  wordIndex: number;
+}) {
+  const seg = word.segment;
+  const segIndicatorColor = isSourceRun && seg ? getSegmentColor(seg) : undefined;
+
+  return (
+    <div
+      data-word-index={wordIndex}
+      className="word"
+      style={
+        isSourceRun && seg && isActive
+          ? { borderBottom: `2px solid ${segIndicatorColor}`, paddingBottom: "1px" }
+          : undefined
+      }
+    >
+      {word.letters.map((letter, li) => (
+        <span
+          key={li}
+          className={`letter ${letter.status}`}
+          style={
+            isSourceRun && seg && letter.status === "pending"
+              ? { color: segIndicatorColor, opacity: 0.5 }
+              : undefined
+          }
+        >
+          {letter.char}
+        </span>
+      ))}
+    </div>
+  );
+});
 
 interface TypingAreaProps {
   onRestart: () => void;
@@ -12,8 +79,15 @@ interface TypingAreaProps {
 }
 
 export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
-  const { words, currentWordIndex, currentLetterIndex, phase, timerSeconds, isSourceRun } = useTestStore();
-  const config = useConfigStore();
+  const words = useTestStore((s) => s.words);
+  const currentWordIndex = useTestStore((s) => s.currentWordIndex);
+  const currentLetterIndex = useTestStore((s) => s.currentLetterIndex);
+  const phase = useTestStore((s) => s.phase);
+  const isSourceRun = useTestStore((s) => s.isSourceRun);
+
+  const mode = useConfigStore((s) => s.mode);
+  const timeConfig = useConfigStore((s) => s.timeConfig);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const wordsRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef<HTMLDivElement>(null);
@@ -40,6 +114,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
 
     if (phase === "idle") {
       lineOffsetRef.current = 0;
+      container.style.transition = "none";
       container.style.transform = "translateY(0px)";
     }
 
@@ -78,8 +153,11 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
     const wordTop = activeWord.offsetTop;
     if (wordTop > lineHeight * 1.5) {
       const newOffset = wordTop - lineHeight;
-      lineOffsetRef.current = newOffset;
-      container.style.transform = `translateY(-${newOffset}px)`;
+      if (newOffset !== lineOffsetRef.current) {
+        lineOffsetRef.current = newOffset;
+        container.style.transition = "transform 120ms ease-out";
+        container.style.transform = `translateY(-${newOffset}px)`;
+      }
     }
   }, [currentWordIndex, currentLetterIndex, words, phase]);
 
@@ -87,8 +165,8 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
     return <div style={{ height: "4.8em" }} />;
   }
 
-  const showTimer = config.mode === "time" && phase === "typing";
-  const showWordCount = (config.mode === "words" || config.mode === "source") && phase === "typing";
+  const showTimer = mode === "time" && phase === "typing";
+  const showWordCount = (mode === "words" || mode === "source") && phase === "typing";
 
   const currentSegment = words[currentWordIndex]?.segment;
   const segColor = currentSegment ? getSegmentColor(currentSegment) : undefined;
@@ -109,16 +187,11 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
 
       {(showTimer || showWordCount) && (
         <div className="flex items-center gap-3 mb-4">
-          <span
-            className="text-2xl font-bold tabular-nums tracking-wider"
-            style={{ color: "var(--main)" }}
-          >
-            {showTimer && `${timerSeconds}`}
-            {showWordCount && `${currentWordIndex}/${words.length}`}
-          </span>
+          {showTimer && <TimerDisplay />}
+          {showWordCount && <WordCounter />}
           {isSourceRun && currentSegment && phase === "typing" && (
             <span
-              className="text-xs uppercase tracking-widest font-bold px-2 py-0.5 rounded transition-all duration-200"
+              className="text-xs uppercase tracking-widest font-bold px-2 py-0.5 rounded"
               style={{
                 color: segColor,
                 backgroundColor: "var(--bg-alt)",
@@ -131,9 +204,12 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
         </div>
       )}
 
-      {phase === "idle" && config.mode === "time" && (
-        <div className="text-2xl font-bold mb-4 tabular-nums tracking-wider" style={{ color: "var(--main)" }}>
-          {config.timeConfig}
+      {phase === "idle" && mode === "time" && (
+        <div
+          className="text-2xl font-bold mb-4 tabular-nums tracking-wider"
+          style={{ color: "var(--main)" }}
+        >
+          {timeConfig}
         </div>
       )}
 
@@ -147,38 +223,15 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
             className={`caret ${phase === "typing" ? "typing" : ""}`}
             style={{ display: isFocused ? "block" : "none" }}
           />
-          {words.map((word, wi) => {
-            const seg = word.segment;
-            const isActive = wi === currentWordIndex;
-            const segIndicatorColor = isSourceRun && seg ? getSegmentColor(seg) : undefined;
-
-            return (
-              <div
-                key={wi}
-                data-word-index={wi}
-                className="word"
-                style={
-                  isSourceRun && seg && isActive
-                    ? { borderBottom: `2px solid ${segIndicatorColor}`, paddingBottom: "1px" }
-                    : undefined
-                }
-              >
-                {word.letters.map((letter, li) => (
-                  <span
-                    key={li}
-                    className={`letter ${letter.status}`}
-                    style={
-                      isSourceRun && seg && letter.status === "pending"
-                        ? { color: segIndicatorColor, opacity: 0.5 }
-                        : undefined
-                    }
-                  >
-                    {letter.char}
-                  </span>
-                ))}
-              </div>
-            );
-          })}
+          {words.map((word, wi) => (
+            <WordRow
+              key={wi}
+              word={word}
+              isActive={wi === currentWordIndex}
+              isSourceRun={isSourceRun}
+              wordIndex={wi}
+            />
+          ))}
         </div>
 
         {!isFocused && phase !== "finished" && (

@@ -8,12 +8,6 @@ import { calculateWpm, calculateRawWpm, computeFinalStats } from "@/lib/calculat
 import type { Letter } from "@/store/useTestStore";
 
 export function useTypingEngine() {
-  const {
-    setWords, setPhase, setTimerSeconds, setStartTime,
-    setCurrentWordIndex, setCurrentLetterIndex,
-    updateWord, addWpmSnapshot, setStats, reset,
-  } = useTestStore();
-
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const snapshotRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tabPressedRef = useRef(false);
@@ -23,7 +17,6 @@ export function useTypingEngine() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-
     if (snapshotRef.current) {
       clearInterval(snapshotRef.current);
       snapshotRef.current = null;
@@ -32,61 +25,69 @@ export function useTypingEngine() {
 
   const finishTest = useCallback(() => {
     clearTimers();
-    const store = useTestStore.getState();
-    const elapsed = store.startTime ? (Date.now() - store.startTime) / 1000 : 0;
-    const stats = computeFinalStats(store.words, store.wpmHistory, elapsed, store.currentWordIndex + 1);
-    setStats(stats);
-    setPhase("finished");
-  }, [clearTimers, setStats, setPhase]);
+    const s = useTestStore.getState();
+    const elapsed = s.startTime ? (Date.now() - s.startTime) / 1000 : 0;
+    const stats = computeFinalStats(s.words, s.wpmHistory, elapsed, s.currentWordIndex + 1);
+    s.setStats(stats);
+    s.setPhase("finished");
+  }, [clearTimers]);
 
   const startTimers = useCallback(() => {
     const now = Date.now();
-    setStartTime(now);
+    useTestStore.getState().setStartTime(now);
     const { mode, timeConfig } = useConfigStore.getState();
 
     if (mode === "time") {
-      setTimerSeconds(timeConfig);
+      useTestStore.getState().setTimerSeconds(timeConfig);
+      let lastSecond = timeConfig;
       timerRef.current = setInterval(() => {
         const elapsed = (Date.now() - now) / 1000;
         const remaining = Math.max(0, timeConfig - Math.floor(elapsed));
-        setTimerSeconds(remaining);
-        if (remaining <= 0) {
-          finishTest();
+        if (remaining !== lastSecond) {
+          lastSecond = remaining;
+          useTestStore.getState().setTimerSeconds(remaining);
         }
+        if (remaining <= 0) finishTest();
       }, 100);
     } else {
+      let lastSecond = 0;
       timerRef.current = setInterval(() => {
         const elapsed = (Date.now() - now) / 1000;
-        setTimerSeconds(Math.floor(elapsed));
+        const second = Math.floor(elapsed);
+        if (second !== lastSecond) {
+          lastSecond = second;
+          useTestStore.getState().setTimerSeconds(second);
+        }
       }, 100);
     }
 
     snapshotRef.current = setInterval(() => {
-      const store = useTestStore.getState();
+      const s = useTestStore.getState();
       const elapsed = (Date.now() - now) / 1000;
       const second = Math.floor(elapsed);
       if (second < 1) return;
 
       let correct = 0;
       let total = 0;
-      for (let i = 0; i <= store.currentWordIndex && i < store.words.length; i++) {
-        for (const l of store.words[i].letters) {
+      for (let i = 0; i <= s.currentWordIndex && i < s.words.length; i++) {
+        for (const l of s.words[i].letters) {
           if (l.status === "correct") correct++;
           if (l.status !== "pending") total++;
         }
       }
 
-      addWpmSnapshot({
+      s.addWpmSnapshot({
         second,
         wpm: calculateWpm(correct, elapsed),
         raw: calculateRawWpm(total, elapsed),
       });
     }, 1000);
-  }, [setStartTime, setTimerSeconds, finishTest, addWpmSnapshot]);
+  }, [finishTest]);
 
   const initTest = useCallback(() => {
     clearTimers();
-    reset();
+    const s = useTestStore.getState();
+    s.reset();
     const cfg = useConfigStore.getState();
     const newWords = generateWords({
       mode: cfg.mode,
@@ -96,9 +97,9 @@ export function useTypingEngine() {
       punctuation: cfg.punctuation,
       numbers: cfg.numbers,
     });
-    setWords(newWords);
-    setPhase("idle");
-  }, [clearTimers, reset, setWords, setPhase]);
+    s.setWords(newWords);
+    s.setPhase("idle");
+  }, [clearTimers]);
 
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
@@ -110,7 +111,7 @@ export function useTypingEngine() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      const store = useTestStore.getState();
+      const s = useTestStore.getState();
 
       if (e.key === "Tab") {
         e.preventDefault();
@@ -125,25 +126,23 @@ export function useTypingEngine() {
         return;
       }
 
-      if (store.phase === "finished") return;
-
+      if (s.phase === "finished") return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Shift" || e.key === "CapsLock" || e.key === "Escape" || e.key === "Enter") return;
+      if (s.words.length === 0) return;
 
-      if (store.words.length === 0) return;
-
-      if (store.phase === "idle") {
-        setPhase("typing");
+      if (s.phase === "idle") {
+        s.setPhase("typing");
         startTimers();
       }
 
-      const word = store.words[store.currentWordIndex];
+      const word = s.words[s.currentWordIndex];
       if (!word) return;
 
       if (e.key === "Backspace") {
         e.preventDefault();
-        if (store.currentLetterIndex > 0) {
-          const newLetterIndex = store.currentLetterIndex - 1;
+        if (s.currentLetterIndex > 0) {
+          const newLetterIndex = s.currentLetterIndex - 1;
           const letters = [...word.letters];
 
           if (letters[newLetterIndex]?.status === "extra") {
@@ -153,33 +152,33 @@ export function useTypingEngine() {
           }
 
           const newTyped = word.typed.slice(0, -1);
-          updateWord(store.currentWordIndex, { ...word, letters, typed: newTyped });
-          setCurrentLetterIndex(newLetterIndex);
+          s.updateWord(s.currentWordIndex, { ...word, letters, typed: newTyped });
+          s.setCurrentLetterIndex(newLetterIndex);
         }
         return;
       }
 
       if (e.key === " ") {
         e.preventDefault();
-        if (store.currentLetterIndex === 0) return;
+        if (s.currentLetterIndex === 0) return;
 
-        const nextWordIndex = store.currentWordIndex + 1;
+        const nextWordIndex = s.currentWordIndex + 1;
         const cfgMode = useConfigStore.getState().mode;
 
-        if (cfgMode !== "time" && nextWordIndex >= store.words.length) {
+        if (cfgMode !== "time" && nextWordIndex >= s.words.length) {
           finishTest();
           return;
         }
 
-        setCurrentWordIndex(nextWordIndex);
-        setCurrentLetterIndex(0);
+        s.setCurrentWordIndex(nextWordIndex);
+        s.setCurrentLetterIndex(0);
         return;
       }
 
       if (e.key.length !== 1) return;
 
       e.preventDefault();
-      const letterIndex = store.currentLetterIndex;
+      const letterIndex = s.currentLetterIndex;
       const letters = [...word.letters];
 
       if (letterIndex < letters.length) {
@@ -192,10 +191,10 @@ export function useTypingEngine() {
       }
 
       const newTyped = word.typed + e.key;
-      updateWord(store.currentWordIndex, { ...word, letters, typed: newTyped });
-      setCurrentLetterIndex(letterIndex + 1);
+      s.updateWord(s.currentWordIndex, { ...word, letters, typed: newTyped });
+      s.setCurrentLetterIndex(letterIndex + 1);
     },
-    [initTest, startTimers, finishTest, setPhase, setCurrentWordIndex, setCurrentLetterIndex, updateWord]
+    [initTest, startTimers, finishTest]
   );
 
   useEffect(() => {

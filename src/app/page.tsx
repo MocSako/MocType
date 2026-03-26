@@ -17,12 +17,13 @@ import { buildSourceRun } from "@/lib/buildSourceRun";
 import type { SegmentType, Word } from "@/store/useTestStore";
 
 export default function Home() {
-  const { phase, setWords, setPhase, reset, setIsSourceRun } = useTestStore();
+  const phase = useTestStore((s) => s.phase);
   const { handleKeyDown } = useTypingEngine();
   const [showSourceInput, setShowSourceInput] = useState(false);
   const lastSourceWordsRef = useRef<Word[]>([]);
 
   const loadGeneratedRun = useCallback(() => {
+    const s = useTestStore.getState();
     const cfg = useConfigStore.getState();
     const newWords = generateWords({
       mode: cfg.mode,
@@ -32,12 +33,12 @@ export default function Home() {
       punctuation: cfg.punctuation,
       numbers: cfg.numbers,
     });
-    setWords(newWords);
-    setPhase("idle");
-  }, [setWords, setPhase]);
+    s.setWords(newWords);
+    s.setPhase("idle");
+  }, []);
 
   const startFresh = useCallback(() => {
-    reset();
+    useTestStore.getState().reset();
     const cfg = useConfigStore.getState();
 
     if (cfg.mode === "source") {
@@ -47,26 +48,27 @@ export default function Home() {
 
     setShowSourceInput(false);
     loadGeneratedRun();
-  }, [reset, loadGeneratedRun]);
+  }, [loadGeneratedRun]);
 
   const handleSourceSubmit = useCallback((text: string) => {
-    reset();
+    const s = useTestStore.getState();
+    s.reset();
     const blocks = parseSourceText(text);
     const classified = classifyBlocks(blocks);
     const words = buildSourceRun(classified);
     lastSourceWordsRef.current = words;
-    setWords(words);
-    setIsSourceRun(true);
+    s.setWords(words);
+    s.setIsSourceRun(true);
     setShowSourceInput(false);
-    setPhase("idle");
-  }, [reset, setWords, setIsSourceRun, setPhase]);
+    s.setPhase("idle");
+  }, []);
 
   const handleSourceCancel = useCallback(() => {
     setShowSourceInput(false);
     useConfigStore.getState().setMode("time");
-    reset();
+    useTestStore.getState().reset();
     loadGeneratedRun();
-  }, [reset, loadGeneratedRun]);
+  }, [loadGeneratedRun]);
 
   const handleRemix = useCallback((weakSegments: SegmentType[]) => {
     const stored = lastSourceWordsRef.current;
@@ -75,17 +77,18 @@ export default function Home() {
     const weakWords = stored.filter((w) => w.segment && weakSegments.includes(w.segment));
     if (weakWords.length < 3) return;
 
-    reset();
+    const s = useTestStore.getState();
+    s.reset();
     const fresh: Word[] = weakWords.map((w) => ({
       letters: w.letters.map((l) => ({ char: l.char, status: "pending" as const })),
       typed: "",
       segment: w.segment,
     }));
     lastSourceWordsRef.current = fresh;
-    setWords(fresh);
-    setIsSourceRun(true);
-    setPhase("idle");
-  }, [reset, setWords, setIsSourceRun, setPhase]);
+    s.setWords(fresh);
+    s.setIsSourceRun(true);
+    s.setPhase("idle");
+  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => startFresh());
