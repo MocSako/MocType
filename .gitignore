@@ -22,6 +22,10 @@
 
 # misc
 .DS_Store
+
+# local AI/editor agent instructions (not for the repo)
+AGENTS.md
+CLAUDE.md
 *.pem
 
 # debug
