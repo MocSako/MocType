@@ -35,23 +35,23 @@ function WordCounter() {
 const WordRow = memo(function WordRow({
   word,
   isActive,
-  isSourceRun,
+  hasSegments,
   wordIndex,
 }: {
   word: Word;
   isActive: boolean;
-  isSourceRun: boolean;
+  hasSegments: boolean;
   wordIndex: number;
 }) {
   const seg = word.segment;
-  const segIndicatorColor = isSourceRun && seg ? getSegmentColor(seg) : undefined;
+  const segIndicatorColor = hasSegments && seg ? getSegmentColor(seg) : undefined;
 
   return (
     <div
       data-word-index={wordIndex}
       className="word"
       style={
-        isSourceRun && seg && isActive
+        hasSegments && seg && isActive
           ? { borderBottom: `2px solid ${segIndicatorColor}`, paddingBottom: "1px" }
           : undefined
       }
@@ -61,7 +61,7 @@ const WordRow = memo(function WordRow({
           key={li}
           className={`letter ${letter.status}`}
           style={
-            isSourceRun && seg && letter.status === "pending"
+            hasSegments && seg && letter.status === "pending"
               ? { color: segIndicatorColor, opacity: 0.5 }
               : undefined
           }
@@ -83,7 +83,10 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
   const currentWordIndex = useTestStore((s) => s.currentWordIndex);
   const currentLetterIndex = useTestStore((s) => s.currentLetterIndex);
   const phase = useTestStore((s) => s.phase);
-  const isSourceRun = useTestStore((s) => s.isSourceRun);
+  const runKind = useTestStore((s) => s.runKind);
+  const isSourceRun = runKind === "source";
+  const isBugHunt = runKind === "bug-hunt";
+  const activeChallenge = useTestStore((s) => s.activeChallenge);
 
   const mode = useConfigStore((s) => s.mode);
   const timeConfig = useConfigStore((s) => s.timeConfig);
@@ -151,13 +154,11 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
 
     const lineHeight = targetRect.height;
     const wordTop = activeWord.offsetTop;
-    if (wordTop > lineHeight * 1.5) {
-      const newOffset = wordTop - lineHeight;
-      if (newOffset !== lineOffsetRef.current) {
-        lineOffsetRef.current = newOffset;
-        container.style.transition = "transform 120ms ease-out";
-        container.style.transform = `translateY(-${newOffset}px)`;
-      }
+    const lineTop = Math.round(wordTop / lineHeight) * lineHeight;
+    if (lineTop !== lineOffsetRef.current) {
+      lineOffsetRef.current = lineTop;
+      container.style.transition = "transform 120ms ease-out";
+      container.style.transform = `translateY(-${lineTop}px)`;
     }
   }, [currentWordIndex, currentLetterIndex, words, phase]);
 
@@ -166,7 +167,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
   }
 
   const showTimer = mode === "time" && phase === "typing";
-  const showWordCount = (mode === "words" || mode === "source") && phase === "typing";
+  const showWordCount = (mode === "words" || mode === "source" || mode === "bug-hunt") && phase === "typing";
 
   const currentSegment = words[currentWordIndex]?.segment;
   const segColor = currentSegment ? getSegmentColor(currentSegment) : undefined;
@@ -201,6 +202,18 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
               {currentSegment.replace("_", " ")}
             </span>
           )}
+          {isBugHunt && activeChallenge && phase === "typing" && (
+            <span
+              className="text-xs uppercase tracking-widest font-bold px-2 py-0.5 rounded"
+              style={{
+                color: "var(--error)",
+                backgroundColor: "var(--bg-alt)",
+                borderLeft: "3px solid var(--error)",
+              }}
+            >
+              {activeChallenge.bugType.replace("-", " ")}
+            </span>
+          )}
         </div>
       )}
 
@@ -228,7 +241,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
               key={wi}
               word={word}
               isActive={wi === currentWordIndex}
-              isSourceRun={isSourceRun}
+              hasSegments={isSourceRun}
               wordIndex={wi}
             />
           ))}

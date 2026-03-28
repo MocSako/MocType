@@ -5,12 +5,12 @@ import { useTestStore } from "@/store/useTestStore";
 import { useConfigStore } from "@/store/useConfigStore";
 import { generateWords } from "@/lib/generateWords";
 import { calculateWpm, calculateRawWpm, computeFinalStats } from "@/lib/calculateStats";
+import { finalizeWordOnAdvance } from "@/lib/typing/finalizeWordOnAdvance";
 import type { Letter } from "@/store/useTestStore";
 
 export function useTypingEngine() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const snapshotRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const tabPressedRef = useRef(false);
 
   const clearTimers = useCallback(() => {
     if (timerRef.current) {
@@ -27,22 +27,27 @@ export function useTypingEngine() {
     clearTimers();
     const s = useTestStore.getState();
     const elapsed = s.startTime ? (Date.now() - s.startTime) / 1000 : 0;
-    const stats = computeFinalStats(s.words, s.wpmHistory, elapsed, s.currentWordIndex + 1);
+    const stats = computeFinalStats(
+      s.words, s.wpmHistory, elapsed, s.currentWordIndex + 1,
+      s.runKind, s.activeChallenge ?? undefined,
+    );
     s.setStats(stats);
     s.setPhase("finished");
   }, [clearTimers]);
 
   const startTimers = useCallback(() => {
-    const now = Date.now();
-    useTestStore.getState().setStartTime(now);
+    clearTimers();
+    const wallStart = Date.now();
+    const perfStart = performance.now();
+    useTestStore.getState().setStartTime(wallStart);
     const { mode, timeConfig } = useConfigStore.getState();
 
     if (mode === "time") {
+      const deadline = perfStart + timeConfig * 1000;
       useTestStore.getState().setTimerSeconds(timeConfig);
       let lastSecond = timeConfig;
       timerRef.current = setInterval(() => {
-        const elapsed = (Date.now() - now) / 1000;
-        const remaining = Math.max(0, timeConfig - Math.floor(elapsed));
+        const remaining = Math.max(0, Math.floor((deadline - performance.now()) / 1000));
         if (remaining !== lastSecond) {
           lastSecond = remaining;
           useTestStore.getState().setTimerSeconds(remaining);
@@ -52,7 +57,7 @@ export function useTypingEngine() {
     } else {
       let lastSecond = 0;
       timerRef.current = setInterval(() => {
-        const elapsed = (Date.now() - now) / 1000;
+        const elapsed = (performance.now() - perfStart) / 1000;
         const second = Math.floor(elapsed);
         if (second !== lastSecond) {
           lastSecond = second;
@@ -63,7 +68,7 @@ export function useTypingEngine() {
 
     snapshotRef.current = setInterval(() => {
       const s = useTestStore.getState();
-      const elapsed = (Date.now() - now) / 1000;
+      const elapsed = (performance.now() - perfStart) / 1000;
       const second = Math.floor(elapsed);
       if (second < 1) return;
 
@@ -82,7 +87,7 @@ export function useTypingEngine() {
         raw: calculateRawWpm(total, elapsed),
       });
     }, 1000);
-  }, [finishTest]);
+  }, [clearTimers, finishTest]);
 
   const initTest = useCallback(() => {
     clearTimers();
@@ -101,27 +106,12 @@ export function useTypingEngine() {
     s.setPhase("idle");
   }, [clearTimers]);
 
-  useEffect(() => {
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "Tab") tabPressedRef.current = false;
-    };
-    window.addEventListener("keyup", onKeyUp);
-    return () => window.removeEventListener("keyup", onKeyUp);
-  }, []);
-
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const s = useTestStore.getState();
 
-      if (e.key === "Tab") {
+      if (e.key === "Enter" && e.shiftKey) {
         e.preventDefault();
-        tabPressedRef.current = true;
-        return;
-      }
-
-      if (e.key === "Enter" && tabPressedRef.current) {
-        e.preventDefault();
-        tabPressedRef.current = false;
         initTest();
         return;
       }
@@ -154,6 +144,11 @@ export function useTypingEngine() {
           const newTyped = word.typed.slice(0, -1);
           s.updateWord(s.currentWordIndex, { ...word, letters, typed: newTyped });
           s.setCurrentLetterIndex(newLetterIndex);
+        } else if (s.currentWordIndex > 0) {
+          const prevWordIndex = s.currentWordIndex - 1;
+          const prevWord = s.words[prevWordIndex];
+          s.setCurrentWordIndex(prevWordIndex);
+          s.setCurrentLetterIndex(prevWord.typed.length);
         }
         return;
       }
@@ -161,6 +156,11 @@ export function useTypingEngine() {
       if (e.key === " ") {
         e.preventDefault();
         if (s.currentLetterIndex === 0) return;
+
+        if (s.currentLetterIndex < word.letters.length) {
+          const finalized = finalizeWordOnAdvance(word.letters, s.currentLetterIndex);
+          s.updateWord(s.currentWordIndex, { ...word, letters: finalized });
+        }
 
         const nextWordIndex = s.currentWordIndex + 1;
         const cfgMode = useConfigStore.getState().mode;
@@ -192,7 +192,18 @@ export function useTypingEngine() {
 
       const newTyped = word.typed + e.key;
       s.updateWord(s.currentWordIndex, { ...word, letters, typed: newTyped });
-      s.setCurrentLetterIndex(letterIndex + 1);
+
+      const newLetterIndex = letterIndex + 1;
+      s.setCurrentLetterIndex(newLetterIndex);
+
+      const cfgMode = useConfigStore.getState().mode;
+      if (
+        cfgMode !== "time" &&
+        s.currentWordIndex === s.words.length - 1 &&
+        newLetterIndex >= word.letters.length
+      ) {
+        finishTest();
+      }
     },
     [initTest, startTimers, finishTest]
   );
@@ -201,5 +212,5 @@ export function useTypingEngine() {
     return () => clearTimers();
   }, [clearTimers]);
 
-  return { initTest, handleKeyDown, finishTest };
+  return { initTest, handleKeyDown, finishTest, clearTimers };
 }

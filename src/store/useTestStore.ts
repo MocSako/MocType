@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { BugHuntChallenge } from "@/lib/bug-hunt/types";
 
 export type LetterStatus = "pending" | "correct" | "incorrect" | "extra";
 
@@ -36,6 +37,8 @@ export interface SegmentMetric {
   wpm: number;
 }
 
+export type RunKind = "standard" | "source" | "bug-hunt";
+
 export interface TestStats {
   wpm: number;
   raw: number;
@@ -47,7 +50,8 @@ export interface TestStats {
   missedChars: number;
   time: number;
   segmentMetrics?: SegmentMetric[];
-  isSourceRun?: boolean;
+  runKind: RunKind;
+  challenge?: BugHuntChallenge;
 }
 
 export type TestPhase = "idle" | "typing" | "finished";
@@ -61,7 +65,8 @@ interface TestState {
   startTime: number | null;
   wpmHistory: WpmSnapshot[];
   stats: TestStats | null;
-  isSourceRun: boolean;
+  runKind: RunKind;
+  activeChallenge: BugHuntChallenge | null;
 
   setWords: (words: Word[]) => void;
   setPhase: (phase: TestPhase) => void;
@@ -72,7 +77,8 @@ interface TestState {
   updateWord: (index: number, word: Word) => void;
   addWpmSnapshot: (snapshot: WpmSnapshot) => void;
   setStats: (stats: TestStats) => void;
-  setIsSourceRun: (v: boolean) => void;
+  setRunKind: (kind: RunKind) => void;
+  setActiveChallenge: (c: BugHuntChallenge | null) => void;
   reset: () => void;
 }
 
@@ -85,7 +91,8 @@ const initialState = {
   startTime: null as number | null,
   wpmHistory: [] as WpmSnapshot[],
   stats: null as TestStats | null,
-  isSourceRun: false,
+  runKind: "standard" as RunKind,
+  activeChallenge: null as BugHuntChallenge | null,
 };
 
 export const useTestStore = create<TestState>()((set) => ({
@@ -106,6 +113,7 @@ export const useTestStore = create<TestState>()((set) => ({
   addWpmSnapshot: (snapshot) =>
     set((state) => ({ wpmHistory: [...state.wpmHistory, snapshot] })),
   setStats: (stats) => set({ stats }),
-  setIsSourceRun: (isSourceRun) => set({ isSourceRun }),
+  setRunKind: (runKind) => set({ runKind }),
+  setActiveChallenge: (activeChallenge) => set({ activeChallenge }),
   reset: () => set({ ...initialState }),
 }));

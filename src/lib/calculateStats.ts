@@ -1,4 +1,5 @@
-import type { Word, WpmSnapshot, TestStats, SegmentMetric, SegmentType } from "@/store/useTestStore";
+import type { Word, WpmSnapshot, TestStats, SegmentMetric, SegmentType, RunKind } from "@/store/useTestStore";
+import type { BugHuntChallenge } from "@/lib/bug-hunt/types";
 
 export function calculateWpm(correctChars: number, elapsedSeconds: number): number {
   if (elapsedSeconds <= 0) return 0;
@@ -29,7 +30,9 @@ export function computeFinalStats(
   words: Word[],
   wpmHistory: WpmSnapshot[],
   elapsedSeconds: number,
-  typedWordCount: number
+  typedWordCount: number,
+  runKind: RunKind = "standard",
+  challenge?: BugHuntChallenge,
 ): TestStats {
   let correctChars = 0;
   let incorrectChars = 0;
@@ -51,7 +54,7 @@ export function computeFinalStats(
     }
   }
 
-  const totalChars = correctChars + incorrectChars + extraChars;
+  const totalChars = correctChars + incorrectChars + extraChars + missedChars;
   const hasSegments = words.some((w) => w.segment != null);
   let segmentMetrics: SegmentMetric[] | undefined;
 
@@ -70,7 +73,8 @@ export function computeFinalStats(
     missedChars,
     time: Math.round(elapsedSeconds),
     segmentMetrics,
-    isSourceRun: hasSegments,
+    runKind: hasSegments && runKind === "standard" ? "source" : runKind,
+    challenge,
   };
 }
 
@@ -95,6 +99,7 @@ function computeSegmentMetrics(
       if (letter.status === "correct") { b.correct++; b.total++; }
       else if (letter.status === "incorrect") { b.incorrect++; b.total++; }
       else if (letter.status === "extra") { b.total++; }
+      else if (letter.status === "pending") { b.total++; }
     }
   }
 

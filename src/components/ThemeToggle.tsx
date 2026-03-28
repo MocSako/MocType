@@ -28,8 +28,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="p-2 rounded-md transition-colors hover:opacity-70"
-      style={{ color: "var(--sub)" }}
+      className="type-atelier-theme-toggle"
       aria-label="Toggle theme"
     >
       {theme === "dark" ? (

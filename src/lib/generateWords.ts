@@ -47,7 +47,7 @@ export function generateWords(opts: {
 }): Word[] {
   const { mode, wordCount, timeConfig, punctuation, numbers } = opts;
 
-  if (mode === "source") {
+  if (mode === "source" || mode === "bug-hunt") {
     return [];
   }
 

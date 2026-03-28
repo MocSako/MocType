@@ -3,10 +3,10 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import TestConfig from "@/components/TestConfig";
 import TypingArea from "@/components/TypingArea";
 import Results from "@/components/Results";
 import SourceInput from "@/components/SourceInput";
+import BugHuntInput from "@/components/BugHuntInput";
 import { useTestStore } from "@/store/useTestStore";
 import { useConfigStore } from "@/store/useConfigStore";
 import { useTypingEngine } from "@/hooks/useTypingEngine";
@@ -14,13 +14,19 @@ import { generateWords } from "@/lib/generateWords";
 import { parseSourceText } from "@/lib/sourceParser";
 import { classifyBlocks } from "@/lib/segmentClassifier";
 import { buildSourceRun } from "@/lib/buildSourceRun";
+import { challenges } from "@/lib/bug-hunt/challenges";
+import { selectChallenge } from "@/lib/bug-hunt/selectChallenge";
+import { buildBugHuntRun } from "@/lib/bug-hunt/buildBugHuntRun";
 import type { SegmentType, Word } from "@/store/useTestStore";
+import type { BugHuntChallenge } from "@/lib/bug-hunt/types";
 
 export default function Home() {
   const phase = useTestStore((s) => s.phase);
-  const { handleKeyDown } = useTypingEngine();
+  const { handleKeyDown, clearTimers } = useTypingEngine();
   const [showSourceInput, setShowSourceInput] = useState(false);
+  const [showBugHuntInput, setShowBugHuntInput] = useState(false);
   const lastSourceWordsRef = useRef<Word[]>([]);
+  const lastChallengeRef = useRef<BugHuntChallenge | null>(null);
 
   const loadGeneratedRun = useCallback(() => {
     const s = useTestStore.getState();
@@ -37,16 +43,56 @@ export default function Home() {
     s.setPhase("idle");
   }, []);
 
+  const loadBugHuntChallenge = useCallback(() => {
+    const s = useTestStore.getState();
+    const cfg = useConfigStore.getState();
+    s.reset();
+    const challenge = selectChallenge(challenges, {
+      difficulty: cfg.bugHuntDifficulty,
+      lastId: lastChallengeRef.current?.id,
+    });
+    lastChallengeRef.current = challenge;
+    s.setActiveChallenge(challenge);
+    s.setRunKind("bug-hunt");
+    setShowBugHuntInput(true);
+  }, []);
+
   const startFresh = useCallback(() => {
+    clearTimers();
     useTestStore.getState().reset();
     const cfg = useConfigStore.getState();
+
+    setShowSourceInput(false);
+    setShowBugHuntInput(false);
 
     if (cfg.mode === "source") {
       setShowSourceInput(true);
       return;
     }
 
-    setShowSourceInput(false);
+    if (cfg.mode === "bug-hunt") {
+      loadBugHuntChallenge();
+      return;
+    }
+
+    loadGeneratedRun();
+  }, [clearTimers, loadGeneratedRun, loadBugHuntChallenge]);
+
+  const handleBugHuntStart = useCallback(() => {
+    const s = useTestStore.getState();
+    const challenge = s.activeChallenge;
+    if (!challenge) return;
+    const words = buildBugHuntRun(challenge.correctedCode);
+    s.setWords(words);
+    s.setRunKind("bug-hunt");
+    setShowBugHuntInput(false);
+    s.setPhase("idle");
+  }, []);
+
+  const handleBugHuntCancel = useCallback(() => {
+    setShowBugHuntInput(false);
+    useConfigStore.getState().setMode("time");
+    useTestStore.getState().reset();
     loadGeneratedRun();
   }, [loadGeneratedRun]);
 
@@ -58,7 +104,7 @@ export default function Home() {
     const words = buildSourceRun(classified);
     lastSourceWordsRef.current = words;
     s.setWords(words);
-    s.setIsSourceRun(true);
+    s.setRunKind("source");
     setShowSourceInput(false);
     s.setPhase("idle");
   }, []);
@@ -86,7 +132,7 @@ export default function Home() {
     }));
     lastSourceWordsRef.current = fresh;
     s.setWords(fresh);
-    s.setIsSourceRun(true);
+    s.setRunKind("source");
     s.setPhase("idle");
   }, []);
 
@@ -95,38 +141,35 @@ export default function Home() {
     return () => cancelAnimationFrame(frame);
   }, [startFresh]);
 
-  const handleConfigChange = useCallback(() => {
-    startFresh();
-  }, [startFresh]);
-
-  const showTest = (phase === "idle" || phase === "typing") && !showSourceInput;
+  const showTest = (phase === "idle" || phase === "typing") && !showSourceInput && !showBugHuntInput;
   const isTyping = phase === "typing";
 
   return (
     <>
-      <Header />
+      <div
+        className="transition-opacity duration-200"
+        style={{ opacity: isTyping ? 0.3 : 1, pointerEvents: isTyping ? "none" : "auto" }}
+      >
+        <Header onConfigChange={startFresh} />
+      </div>
       <main className="flex-1 flex flex-col items-center justify-center w-full max-w-[1100px] mx-auto px-6">
         {showSourceInput && (
           <SourceInput onSubmit={handleSourceSubmit} onCancel={handleSourceCancel} />
         )}
 
+        {showBugHuntInput && (
+          <BugHuntInput onStart={handleBugHuntStart} onCancel={handleBugHuntCancel} />
+        )}
+
         {showTest && (
-          <>
-            <div
-              className="mb-8 w-full flex justify-center transition-opacity duration-200"
-              style={{ opacity: isTyping ? 0 : 1, pointerEvents: isTyping ? "none" : "auto" }}
-            >
-              <TestConfig onConfigChange={handleConfigChange} />
-            </div>
-            <div className="w-full">
-              <TypingArea onRestart={startFresh} onKeyDown={handleKeyDown} />
-            </div>
-          </>
+          <div className="w-full">
+            <TypingArea onRestart={startFresh} onKeyDown={handleKeyDown} />
+          </div>
         )}
 
         {phase === "finished" && (
           <div className="w-full">
-            <Results onRestart={startFresh} onRemix={handleRemix} />
+            <Results onRestart={startFresh} onRemix={handleRemix} onNewChallenge={loadBugHuntChallenge} />
           </div>
         )}
       </main>

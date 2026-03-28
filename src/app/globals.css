@@ -100,3 +100,131 @@ body {
 .fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+.command-deck {
+  position: relative;
+  z-index: 20;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-deck,
+  .command-deck * {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}
+
+.type-atelier-shell {
+  background: var(--bg-alt);
+  border-radius: 1rem;
+}
+
+.type-atelier-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.type-atelier-brand:hover {
+  opacity: 0.7;
+}
+
+.type-atelier-brand:focus-visible {
+  outline: 2px solid var(--main);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+.type-atelier-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+  background: var(--main);
+  color: var(--bg);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.type-atelier-brand-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--main);
+}
+
+.type-atelier-mode-rail {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.375rem;
+  border-radius: 0.75rem;
+  background: var(--bg);
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .type-atelier-mode-rail {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .type-atelier-mode-rail::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.type-atelier-active-tab {
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: var(--main);
+  border-radius: 1px;
+}
+
+.type-atelier-slot-btn {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.type-atelier-slot-btn:hover {
+  opacity: 0.7;
+}
+
+.type-atelier-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: none;
+  color: var(--sub);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.type-atelier-theme-toggle:hover {
+  color: var(--main);
+}
+
+.type-atelier-theme-toggle:focus-visible {
+  outline: 2px solid var(--main);
+  outline-offset: 2px;
+}

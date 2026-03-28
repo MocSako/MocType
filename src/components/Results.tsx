@@ -11,6 +11,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 interface ResultsProps {
   onRestart: () => void;
   onRemix?: (segments: SegmentType[]) => void;
+  onNewChallenge?: () => void;
 }
 
 interface StatBoxProps {
@@ -19,8 +20,9 @@ interface StatBoxProps {
   small?: boolean;
 }
 
-export default function Results({ onRestart, onRemix }: ResultsProps) {
-  const { stats, wpmHistory } = useTestStore();
+export default function Results({ onRestart, onRemix, onNewChallenge }: ResultsProps) {
+  const stats = useTestStore((s) => s.stats);
+  const wpmHistory = useTestStore((s) => s.wpmHistory);
 
   const dna = useMemo(() => {
     if (!stats) return null;
@@ -36,7 +38,8 @@ export default function Results({ onRestart, onRemix }: ResultsProps) {
   }));
 
   const segmentMetrics = stats.segmentMetrics ?? [];
-  const isSource = Boolean(stats.isSourceRun);
+  const isSource = stats.runKind === "source";
+  const isBugHunt = stats.runKind === "bug-hunt";
   const hasSegmentMetrics = segmentMetrics.length > 0;
 
   return (
@@ -65,6 +68,16 @@ export default function Results({ onRestart, onRemix }: ResultsProps) {
               style={{ backgroundColor: "var(--bg-alt)", color: "var(--main)" }}
             >
               Source Run
+            </span>
+          </div>
+        )}
+        {isBugHunt && (
+          <div className="ml-auto">
+            <span
+              className="text-xs uppercase tracking-widest font-bold px-3 py-1 rounded"
+              style={{ backgroundColor: "var(--bg-alt)", color: "var(--error)" }}
+            >
+              Bug Hunt
             </span>
           </div>
         )}
@@ -206,8 +219,42 @@ export default function Results({ onRestart, onRemix }: ResultsProps) {
         </div>
       )}
 
+      {isBugHunt && stats.challenge && (
+        <div
+          className="mb-6 rounded-lg p-4"
+          style={{ backgroundColor: "var(--bg-alt)", borderLeft: "3px solid var(--error)" }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--error)" }}>
+              The Bug
+            </span>
+            <span className="text-xs uppercase tracking-widest" style={{ color: "var(--sub)" }}>
+              {stats.challenge.language} &middot; {stats.challenge.difficulty} &middot; {stats.challenge.bugType.replace("-", " ")}
+            </span>
+          </div>
+          <p className="text-sm font-bold mb-2" style={{ color: "var(--text)" }}>
+            {stats.challenge.title}
+          </p>
+          <p className="text-sm" style={{ color: "var(--sub)" }}>
+            {stats.challenge.explanation}
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-center gap-4">
         <RestartButton onClick={onRestart} />
+        {isBugHunt && onNewChallenge && (
+          <button
+            onClick={onNewChallenge}
+            className="px-5 py-2 rounded-lg text-sm font-bold tracking-wider uppercase transition-all"
+            style={{
+              backgroundColor: "var(--error)",
+              color: "var(--bg)",
+            }}
+          >
+            Next Bug
+          </button>
+        )}
         {dna && dna.weakestSegments.length > 0 && onRemix && (
           <button
             onClick={() => onRemix(dna.weakestSegments)}
