@@ -10,6 +10,7 @@ import BugHuntInput from "@/components/BugHuntInput";
 import { useTestStore } from "@/store/useTestStore";
 import { useConfigStore } from "@/store/useConfigStore";
 import { useTypingEngine } from "@/hooks/useTypingEngine";
+import { useFocusMode } from "@/hooks/useFocusMode";
 import { generateWords } from "@/lib/generateWords";
 import { parseSourceText } from "@/lib/sourceParser";
 import { classifyBlocks } from "@/lib/segmentClassifier";
@@ -22,7 +23,7 @@ import type { BugHuntChallenge } from "@/lib/bug-hunt/types";
 
 export default function Home() {
   const phase = useTestStore((s) => s.phase);
-  const { handleKeyDown, clearTimers } = useTypingEngine();
+  const { handleKeyDown, finishTest, clearTimers } = useTypingEngine();
   const [showSourceInput, setShowSourceInput] = useState(false);
   const [showBugHuntInput, setShowBugHuntInput] = useState(false);
   const lastSourceWordsRef = useRef<Word[]>([]);
@@ -121,7 +122,7 @@ export default function Home() {
     if (stored.length === 0) return;
 
     const weakWords = stored.filter((w) => w.segment && weakSegments.includes(w.segment));
-    if (weakWords.length < 3) return;
+    if (weakWords.length === 0) return;
 
     const s = useTestStore.getState();
     s.reset();
@@ -141,14 +142,45 @@ export default function Home() {
     return () => cancelAnimationFrame(frame);
   }, [startFresh]);
 
+  useEffect(() => {
+    function onGlobalKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        startFresh();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        startFresh();
+        return;
+      }
+
+      if (e.key === "Enter" && e.shiftKey) {
+        e.preventDefault();
+        const cfg = useConfigStore.getState();
+        const test = useTestStore.getState();
+        if (cfg.mode === "zen" && test.phase === "typing") {
+          finishTest();
+        } else {
+          startFresh();
+        }
+      }
+    }
+    window.addEventListener("keydown", onGlobalKeyDown);
+    return () => window.removeEventListener("keydown", onGlobalKeyDown);
+  }, [startFresh, finishTest]);
+
   const showTest = (phase === "idle" || phase === "typing") && !showSourceInput && !showBugHuntInput;
   const isTyping = phase === "typing";
+  const dimChrome = useFocusMode(isTyping);
 
   return (
     <>
       <div
         className="transition-opacity duration-200"
-        style={{ opacity: isTyping ? 0.3 : 1, pointerEvents: isTyping ? "none" : "auto" }}
+        style={{ opacity: dimChrome ? 0.3 : 1 }}
       >
         <Header onConfigChange={startFresh} />
       </div>
@@ -173,7 +205,12 @@ export default function Home() {
           </div>
         )}
       </main>
-      <Footer />
+      <div
+        className="transition-opacity duration-200"
+        style={{ opacity: dimChrome ? 0.3 : 1 }}
+      >
+        <Footer />
+      </div>
     </>
   );
 }

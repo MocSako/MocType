@@ -69,6 +69,7 @@ interface TestState {
   activeChallenge: BugHuntChallenge | null;
 
   setWords: (words: Word[]) => void;
+  appendWord: (word: Word) => void;
   setPhase: (phase: TestPhase) => void;
   setTimerSeconds: (s: number) => void;
   setStartTime: (t: number | null) => void;
@@ -99,6 +100,8 @@ export const useTestStore = create<TestState>()((set) => ({
   ...initialState,
 
   setWords: (words) => set({ words }),
+  appendWord: (word) =>
+    set((state) => ({ words: [...state.words, word] })),
   setPhase: (phase) => set({ phase }),
   setTimerSeconds: (timerSeconds) => set({ timerSeconds }),
   setStartTime: (startTime) => set({ startTime }),

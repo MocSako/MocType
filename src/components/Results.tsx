@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useTestStore } from "@/store/useTestStore";
 import type { SegmentType } from "@/store/useTestStore";
 import { deriveTypingDna } from "@/lib/typingDna";
@@ -24,17 +23,13 @@ export default function Results({ onRestart, onRemix, onNewChallenge }: ResultsP
   const stats = useTestStore((s) => s.stats);
   const wpmHistory = useTestStore((s) => s.wpmHistory);
 
-  const dna = useMemo(() => {
-    if (!stats) return null;
-    return deriveTypingDna(stats);
-  }, [stats]);
-
   if (!stats) return null;
 
-  const chartData = wpmHistory.map((s) => ({
-    second: s.second,
-    wpm: s.wpm,
-    raw: s.raw,
+  const dna = deriveTypingDna(stats);
+  const chartData = wpmHistory.map((snap) => ({
+    second: snap.second,
+    wpm: snap.wpm,
+    raw: snap.raw,
   }));
 
   const segmentMetrics = stats.segmentMetrics ?? [];
@@ -229,7 +224,7 @@ export default function Results({ onRestart, onRemix, onNewChallenge }: ResultsP
               The Bug
             </span>
             <span className="text-xs uppercase tracking-widest" style={{ color: "var(--sub)" }}>
-              {stats.challenge.language} &middot; {stats.challenge.difficulty} &middot; {stats.challenge.bugType.replace("-", " ")}
+              {stats.challenge.language} &middot; {stats.challenge.difficulty} &middot; {stats.challenge.bugType.replaceAll("-", " ")}
             </span>
           </div>
           <p className="text-sm font-bold mb-2" style={{ color: "var(--text)" }}>

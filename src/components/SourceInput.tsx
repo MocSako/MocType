@@ -66,7 +66,7 @@ export default function SourceInput({ onSubmit, onCancel }: SourceInputProps) {
         </span>
 
         <button
-          onClick={() => canSubmit && onSubmit(text)}
+          onClick={() => onSubmit(text)}
           disabled={!canSubmit}
           className="px-5 py-2 rounded-lg text-sm font-bold tracking-wider uppercase transition-all"
           style={{

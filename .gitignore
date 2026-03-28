@@ -23,9 +23,11 @@
 # misc
 .DS_Store
 
-# local AI/editor agent instructions (not for the repo)
+# local AI/editor artifacts (not for the repo)
 AGENTS.md
 CLAUDE.md
+docs/superpowers/
+canvas/
 *.pem
 
 # debug

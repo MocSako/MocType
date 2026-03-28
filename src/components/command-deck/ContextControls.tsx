@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useConfigStore } from "@/store/useConfigStore";
 import type { BugHuntDifficulty } from "@/lib/bug-hunt/types";
 import { modeVisuals } from "./nav-language";
@@ -38,111 +37,83 @@ export function ContextControls({ onConfigChange }: ContextControlsProps) {
 
   return (
     <div className="flex items-center gap-1 text-xs tracking-wider">
-      <div
-        className="flex items-center gap-1 transition-opacity duration-150"
-        style={{
-          opacity: hasPunctuationNumbers ? 1 : 0,
-          pointerEvents: hasPunctuationNumbers ? "auto" : "none",
-        }}
-      >
-        <button
-          onClick={() => applyChange(togglePunctuation)}
-          className="type-atelier-slot-btn"
-          style={{ color: punctuation ? "var(--main)" : "var(--sub)" }}
-          tabIndex={hasPunctuationNumbers ? 0 : -1}
-        >
-          @ punctuation
-        </button>
-        <button
-          onClick={() => applyChange(toggleNumbers)}
-          className="type-atelier-slot-btn"
-          style={{ color: numbers ? "var(--main)" : "var(--sub)" }}
-          tabIndex={hasPunctuationNumbers ? 0 : -1}
-        >
-          # numbers
-        </button>
-        <span className="mx-1 select-none" style={{ color: "var(--sub-alt)" }}>|</span>
-      </div>
+      {hasPunctuationNumbers && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => applyChange(togglePunctuation)}
+            className="type-atelier-slot-btn"
+            style={{ color: punctuation ? "var(--main)" : "var(--sub)" }}
+            aria-pressed={punctuation}
+          >
+            @ punctuation
+          </button>
+          <button
+            onClick={() => applyChange(toggleNumbers)}
+            className="type-atelier-slot-btn"
+            style={{ color: numbers ? "var(--main)" : "var(--sub)" }}
+            aria-pressed={numbers}
+          >
+            # numbers
+          </button>
+          <span className="mx-1 select-none" style={{ color: "var(--sub-alt)" }}>|</span>
+        </div>
+      )}
 
-      <div className="grid">
-        <PresetLayer visible={mode === "time"}>
-          <PresetGroup
-            options={timeOptions}
-            active={timeConfig}
-            onSelect={(time) => applyChange(() => setTimeConfig(time))}
-            interactive={mode === "time"}
-          />
-        </PresetLayer>
+      {mode === "time" && (
+        <PresetGroup
+          options={timeOptions}
+          active={timeConfig}
+          onSelect={(time) => applyChange(() => setTimeConfig(time))}
+        />
+      )}
 
-        <PresetLayer visible={mode === "words"}>
-          <PresetGroup
-            options={wordOptions}
-            active={wordConfig}
-            onSelect={(count) => applyChange(() => setWordConfig(count))}
-            interactive={mode === "words"}
-          />
-        </PresetLayer>
+      {mode === "words" && (
+        <PresetGroup
+          options={wordOptions}
+          active={wordConfig}
+          onSelect={(count) => applyChange(() => setWordConfig(count))}
+        />
+      )}
 
-        <PresetLayer visible={mode === "quote"}>
-          <div className="flex items-center gap-0.5">
-            {quoteOptions.map((q) => (
-              <button
-                key={q}
-                onClick={() => applyChange(() => setQuoteLength(q))}
-                className="type-atelier-slot-btn"
-                style={{ color: quoteLength === q ? "var(--main)" : "var(--sub)" }}
-                tabIndex={mode === "quote" ? 0 : -1}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        </PresetLayer>
+      {mode === "quote" && (
+        <div className="flex items-center gap-0.5">
+          {quoteOptions.map((q) => (
+            <button
+              key={q}
+              onClick={() => applyChange(() => setQuoteLength(q))}
+              className="type-atelier-slot-btn"
+              style={{ color: quoteLength === q ? "var(--main)" : "var(--sub)" }}
+              aria-pressed={quoteLength === q}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
 
-        <PresetLayer visible={mode === "zen"}>
-          <span className="px-2 py-1" style={{ color: "var(--sub)" }}>{modeVisuals.zen.contextLabel}</span>
-        </PresetLayer>
+      {mode === "zen" && (
+        <span className="px-2 py-1" style={{ color: "var(--sub)" }}>{modeVisuals.zen.contextLabel}</span>
+      )}
 
-        <PresetLayer visible={mode === "source"}>
-          <span className="px-2 py-1" style={{ color: "var(--sub)" }}>{modeVisuals.source.contextLabel}</span>
-        </PresetLayer>
+      {mode === "source" && (
+        <span className="px-2 py-1" style={{ color: "var(--sub)" }}>{modeVisuals.source.contextLabel}</span>
+      )}
 
-        <PresetLayer visible={mode === "bug-hunt"}>
-          <div className="flex items-center gap-0.5">
-            {difficultyOptions.map((d) => (
-              <button
-                key={d}
-                onClick={() => applyChange(() => setBugHuntDifficulty(d))}
-                className="type-atelier-slot-btn"
-                style={{ color: bugHuntDifficulty === d ? "var(--main)" : "var(--sub)" }}
-                tabIndex={mode === "bug-hunt" ? 0 : -1}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-        </PresetLayer>
-      </div>
-    </div>
-  );
-}
-
-interface PresetLayerProps {
-  visible: boolean;
-  children: ReactNode;
-}
-
-function PresetLayer({ visible, children }: PresetLayerProps) {
-  return (
-    <div
-      className="transition-opacity duration-150 flex items-center"
-      style={{
-        gridArea: "1 / 1",
-        opacity: visible ? 1 : 0,
-        pointerEvents: visible ? "auto" : "none",
-      }}
-    >
-      {children}
+      {mode === "bug-hunt" && (
+        <div className="flex items-center gap-0.5">
+          {difficultyOptions.map((d) => (
+            <button
+              key={d}
+              onClick={() => applyChange(() => setBugHuntDifficulty(d))}
+              className="type-atelier-slot-btn"
+              style={{ color: bugHuntDifficulty === d ? "var(--main)" : "var(--sub)" }}
+              aria-pressed={bugHuntDifficulty === d}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -151,10 +122,9 @@ interface PresetGroupProps {
   options: number[];
   active: number;
   onSelect: (val: number) => void;
-  interactive?: boolean;
 }
 
-function PresetGroup({ options, active, onSelect, interactive = true }: PresetGroupProps) {
+function PresetGroup({ options, active, onSelect }: PresetGroupProps) {
   return (
     <div className="flex items-center gap-0.5">
       {options.map((opt) => (
@@ -163,7 +133,7 @@ function PresetGroup({ options, active, onSelect, interactive = true }: PresetGr
           onClick={() => onSelect(opt)}
           className="type-atelier-slot-btn"
           style={{ color: active === opt ? "var(--main)" : "var(--sub)" }}
-          tabIndex={interactive ? 0 : -1}
+          aria-pressed={active === opt}
         >
           {opt}
         </button>

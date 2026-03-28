@@ -3,7 +3,8 @@ import { getQuotesByLength } from "./quotes";
 import type { Mode } from "@/store/useConfigStore";
 import type { Word } from "@/store/useTestStore";
 
-function pick<T>(arr: T[]): T {
+function pick<T>(arr: readonly T[]): T {
+  if (arr.length === 0) throw new Error("pick() called on empty array");
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
@@ -49,6 +50,10 @@ export function generateWords(opts: {
 
   if (mode === "source" || mode === "bug-hunt") {
     return [];
+  }
+
+  if (mode === "zen") {
+    return [{ letters: [], typed: "" }];
   }
 
   if (mode === "quote") {

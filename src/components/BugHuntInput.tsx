@@ -31,7 +31,7 @@ export default function BugHuntInput({ onStart, onCancel }: BugHuntInputProps) {
           className="text-xs tracking-wider px-3 py-1 rounded transition-colors"
           style={{ color: "var(--sub)", backgroundColor: "var(--bg-alt)" }}
         >
-          &larr; back
+          ← back
         </button>
       </div>
 
@@ -52,7 +52,7 @@ export default function BugHuntInput({ onStart, onCancel }: BugHuntInputProps) {
           className="text-xs uppercase tracking-widest px-2 py-0.5 rounded"
           style={{ backgroundColor: "var(--bg-alt)", color: "var(--error)" }}
         >
-          {challenge.bugType.replace("-", " ")}
+          {challenge.bugType.replaceAll("-", " ")}
         </span>
       </div>
 
@@ -78,10 +78,9 @@ export default function BugHuntInput({ onStart, onCancel }: BugHuntInputProps) {
           style={{
             backgroundColor: "var(--error)",
             color: "var(--bg)",
-            cursor: "pointer",
           }}
         >
-          Fix It &rarr;
+          Fix It →
         </button>
       </div>
     </div>

@@ -78,6 +78,13 @@ interface TypingAreaProps {
   onKeyDown: (e: KeyboardEvent) => void;
 }
 
+function shouldRestoreFocusOnKeyDown(e: KeyboardEvent) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return false;
+  if (e.key === "Shift" || e.key === "CapsLock" || e.key === "Escape" || e.key === "Tab")
+    return false;
+  return true;
+}
+
 export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
   const words = useTestStore((s) => s.words);
   const currentWordIndex = useTestStore((s) => s.currentWordIndex);
@@ -107,9 +114,23 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
   }, [phase]);
 
   useEffect(() => {
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onKeyDown]);
+    function handleWindowKeyDown(e: KeyboardEvent) {
+      if (!isFocused && shouldRestoreFocusOnKeyDown(e)) focusInput();
+      onKeyDown(e);
+    }
+
+    window.addEventListener("keydown", handleWindowKeyDown);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+  }, [focusInput, isFocused, onKeyDown]);
+
+  const prefersReducedMotion = useRef(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    prefersReducedMotion.current = mq.matches;
+    const handler = (e: MediaQueryListEvent) => { prefersReducedMotion.current = e.matches; };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useLayoutEffect(() => {
     if (!wordsRef.current || !caretRef.current) return;
@@ -157,7 +178,10 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
     const lineTop = Math.round(wordTop / lineHeight) * lineHeight;
     if (lineTop !== lineOffsetRef.current) {
       lineOffsetRef.current = lineTop;
-      container.style.transition = "transform 120ms ease-out";
+      const lineTransition = prefersReducedMotion.current
+        ? "none"
+        : "transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+      container.style.transition = lineTransition;
       container.style.transform = `translateY(-${lineTop}px)`;
     }
   }, [currentWordIndex, currentLetterIndex, words, phase]);
@@ -166,7 +190,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
     return <div style={{ height: "4.8em" }} />;
   }
 
-  const showTimer = mode === "time" && phase === "typing";
+  const showTimer = (mode === "time" || mode === "zen") && phase === "typing";
   const showWordCount = (mode === "words" || mode === "source" || mode === "bug-hunt") && phase === "typing";
 
   const currentSegment = words[currentWordIndex]?.segment;
@@ -184,6 +208,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
         autoComplete="off"
         spellCheck={false}
         tabIndex={0}
+        aria-label="Type here"
       />
 
       {(showTimer || showWordCount) && (
@@ -211,7 +236,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
                 borderLeft: "3px solid var(--error)",
               }}
             >
-              {activeChallenge.bugType.replace("-", " ")}
+              {activeChallenge.bugType.replaceAll("-", " ")}
             </span>
           )}
         </div>
@@ -233,7 +258,7 @@ export default function TypingArea({ onRestart, onKeyDown }: TypingAreaProps) {
         >
           <div
             ref={caretRef}
-            className={`caret ${phase === "typing" ? "typing" : ""}`}
+            className={`caret ${phase === "typing" ? "typing" : ""} ${phase === "idle" ? "no-transition" : ""}`}
             style={{ display: isFocused ? "block" : "none" }}
           />
           {words.map((word, wi) => (

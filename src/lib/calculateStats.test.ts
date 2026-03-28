@@ -88,6 +88,47 @@ describe("computeFinalStats", () => {
   });
 });
 
+describe("computeFinalStats — zen-shaped data", () => {
+  it("handles all-correct words with no predefined targets", () => {
+    const words: Word[] = [
+      {
+        letters: [
+          { char: "h", status: "correct" },
+          { char: "i", status: "correct" },
+        ],
+        typed: "hi",
+      },
+      {
+        letters: [
+          { char: "w", status: "correct" },
+          { char: "o", status: "correct" },
+        ],
+        typed: "wo",
+      },
+    ];
+
+    const stats = computeFinalStats(words, [], 10, 2);
+    expect(stats.incorrectChars).toBe(0);
+    expect(stats.accuracy).toBe(100);
+    expect(stats.correctChars).toBe(4 + 2);
+  });
+
+  it("handles partial zen run where typedWordCount < words.length", () => {
+    const words: Word[] = [
+      {
+        letters: [{ char: "a", status: "correct" }],
+        typed: "a",
+      },
+      { letters: [], typed: "" },
+      { letters: [], typed: "" },
+    ];
+
+    const stats = computeFinalStats(words, [], 5, 1);
+    expect(stats.correctChars).toBe(1 + 1);
+    expect(stats.missedChars).toBe(0);
+  });
+});
+
 describe("calculateWpm / calculateRawWpm", () => {
   it("returns 0 when elapsed is 0", () => {
     expect(calculateWpm(50, 0)).toBe(0);

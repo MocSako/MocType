@@ -6,6 +6,8 @@ export interface ClassifiedWord {
   segment: SegmentType;
 }
 
+const properNounStopwords = /^(The|A|An|In|On|At|To|For|Of|And|But|Or|Is|It|He|She|We|My|As|Do|If|So|No|Up|By)$/;
+
 export function classifyBlocks(blocks: ParsedBlock[]): ClassifiedWord[] {
   const result: ClassifiedWord[] = [];
 
@@ -37,7 +39,7 @@ function classifyWord(word: string, lineType: ParsedBlock["lineType"]): SegmentT
   const punctCount = (word.match(/[.,;:!?"'()\-—]/g) || []).length;
   if (punctCount / word.length > 0.35 && word.length > 1) return "punctuation_heavy";
 
-  if (/^[A-Z][a-z]/.test(word) && !/^(The|A|An|In|On|At|To|For|Of|And|But|Or|Is|It|He|She|We|My|As|Do|If|So|No|Up|By)$/.test(word)) {
+  if (/^[A-Z][a-z]/.test(word) && !properNounStopwords.test(word)) {
     return "proper_noun";
   }
 
