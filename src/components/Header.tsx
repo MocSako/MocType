@@ -8,9 +8,10 @@ import ThemeToggle from "./ThemeToggle";
 
 interface HeaderProps {
   onConfigChange: () => void;
+  onOpenInfo?: () => void;
 }
 
-export default function Header({ onConfigChange }: HeaderProps) {
+export default function Header({ onConfigChange, onOpenInfo }: HeaderProps) {
   const setMode = useConfigStore((s) => s.setMode);
 
   const handleModeChange = (mode: Mode) => {
@@ -26,7 +27,22 @@ export default function Header({ onConfigChange }: HeaderProps) {
           <div className="hidden md:flex min-w-0 shrink">
             <ModeSwitcher id="desktop" onModeChange={handleModeChange} />
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            {onOpenInfo && (
+              <button
+                onClick={onOpenInfo}
+                className="type-atelier-theme-toggle"
+                aria-label="About MocType"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
 
         <div

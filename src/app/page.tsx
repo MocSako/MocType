@@ -7,6 +7,8 @@ import TypingArea from "@/components/TypingArea";
 import Results from "@/components/Results";
 import SourceInput from "@/components/SourceInput";
 import BugHuntInput from "@/components/BugHuntInput";
+import { WelcomeModal, hasBeenWelcomed, markWelcomed } from "@/components/WelcomeModal";
+import { InfoModal } from "@/components/InfoModal";
 import { useTestStore } from "@/store/useTestStore";
 import { useConfigStore } from "@/store/useConfigStore";
 import { useTypingEngine } from "@/hooks/useTypingEngine";
@@ -24,10 +26,37 @@ import type { BugHuntChallenge } from "@/lib/bug-hunt/types";
 export default function Home() {
   const phase = useTestStore((s) => s.phase);
   const { handleKeyDown, finishTest, clearTimers } = useTypingEngine();
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [showSourceInput, setShowSourceInput] = useState(false);
   const [showBugHuntInput, setShowBugHuntInput] = useState(false);
   const lastSourceWordsRef = useRef<Word[]>([]);
   const lastChallengeRef = useRef<BugHuntChallenge | null>(null);
+
+  // localStorage is only available after mount; avoid SSR/client mismatch on first paint.
+  useEffect(() => {
+    if (!hasBeenWelcomed()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: read localStorage after hydration
+      setShowWelcome(true);
+    }
+  }, []);
+
+  const dismissWelcome = useCallback(() => {
+    markWelcomed();
+    setShowWelcome(false);
+  }, []);
+
+  const openInfo = useCallback(() => {
+    if (showWelcome) {
+      markWelcomed();
+      setShowWelcome(false);
+    }
+    setShowInfo(true);
+  }, [showWelcome]);
+
+  const closeInfo = useCallback(() => {
+    setShowInfo(false);
+  }, []);
 
   const loadGeneratedRun = useCallback(() => {
     const s = useTestStore.getState();
@@ -144,6 +173,7 @@ export default function Home() {
 
   useEffect(() => {
     function onGlobalKeyDown(e: KeyboardEvent) {
+      if (showWelcome || showInfo) return;
       if (e.target instanceof HTMLTextAreaElement) return;
 
       if (e.key === "Tab") {
@@ -170,7 +200,7 @@ export default function Home() {
     }
     window.addEventListener("keydown", onGlobalKeyDown);
     return () => window.removeEventListener("keydown", onGlobalKeyDown);
-  }, [startFresh, finishTest]);
+  }, [startFresh, finishTest, showWelcome, showInfo]);
 
   const showTest = (phase === "idle" || phase === "typing") && !showSourceInput && !showBugHuntInput;
   const isTyping = phase === "typing";
@@ -182,7 +212,7 @@ export default function Home() {
         className="transition-opacity duration-200"
         style={{ opacity: dimChrome ? 0.3 : 1 }}
       >
-        <Header onConfigChange={startFresh} />
+        <Header onConfigChange={startFresh} onOpenInfo={openInfo} />
       </div>
       <main className="flex-1 flex flex-col items-center justify-center w-full max-w-[1100px] mx-auto px-6">
         {showSourceInput && (
@@ -211,6 +241,8 @@ export default function Home() {
       >
         <Footer />
       </div>
+      <WelcomeModal open={showWelcome} onDismiss={dismissWelcome} onOpenInfo={openInfo} />
+      <InfoModal open={showInfo} onDismiss={closeInfo} />
     </>
   );
 }

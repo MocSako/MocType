@@ -32,6 +32,8 @@ describe("Home page – header interactivity during typing", () => {
   beforeEach(() => {
     Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
     window.localStorage.clear();
+    // Skip welcome modal so global keydown / focus-mode tests are not blocked by its capture listener.
+    window.localStorage.setItem("moctype-welcomed", "true");
     document.body.innerHTML = "";
 
     Object.defineProperty(window, "matchMedia", {
